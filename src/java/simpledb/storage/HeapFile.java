@@ -22,6 +22,8 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
+    private File _file; // 文件
+    private TupleDesc _td; // 对于Tuple的描述
     /**
      * Constructs a heap file backed by the specified file.
      * 
@@ -30,7 +32,9 @@ public class HeapFile implements DbFile {
      *            file.
      */
     public HeapFile(File f, TupleDesc td) {
-        // some code goes here
+        // code done
+        _file = f;
+        _td = td;
     }
 
     /**
@@ -39,8 +43,8 @@ public class HeapFile implements DbFile {
      * @return the File backing this HeapFile on disk.
      */
     public File getFile() {
-        // some code goes here
-        return null;
+        // code done
+        return _file;
     }
 
     /**
@@ -53,8 +57,9 @@ public class HeapFile implements DbFile {
      * @return an ID uniquely identifying this HeapFile.
      */
     public int getId() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        // code done
+        // throw new UnsupportedOperationException("implement this");
+        return _file.getAbsoluteFile().hashCode(); // 唯一标识这个HeapFile
     }
 
     /**
@@ -63,14 +68,32 @@ public class HeapFile implements DbFile {
      * @return TupleDesc of this DbFile.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        // code done
+        // throw new UnsupportedOperationException("implement this");
+        return _td;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
-        // some code goes here
-        return null;
+        // code done
+        int offset = pid.getPageNumber() * BufferPool.getPageSize(); // 计算出这个Page在文件中的偏移量，页面数目乘以每个页的大小
+        byte[] data = new byte[BufferPool.getPageSize()]; // 读取的数据
+        try {
+            RandomAccessFile raf = new RandomAccessFile(_file, "r"); // 以只读的方式打开文件，随机读取文件
+            raf.seek(offset); // 定位到偏移量
+            raf.read(data); // 读取数据
+            raf.close(); // 关闭文件
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Page page = null;
+        try {
+            page = new HeapPage((HeapPageId) pid, data); // 创建一个HeapPage
+        }
+        catch(Exception e){
+            e.printStackTrace();
+        }
+        return page; // 返回一个HeapPage
     }
 
     // see DbFile.java for javadocs
@@ -83,8 +106,9 @@ public class HeapFile implements DbFile {
      * Returns the number of pages in this HeapFile.
      */
     public int numPages() {
-        // some code goes here
-        return 0;
+        // code done
+        // 这个Heap文件一共有多少页
+        return (int) Math.ceil((_file.length() / BufferPool.getPageSize())); // 文件的大小除以每个页的大小，就是页的数目
     }
 
     // see DbFile.java for javadocs
@@ -105,8 +129,59 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
-        // some code goes here
-        return null;
+        // code done
+        DbFileIterator it = new DbFileIterator() {
+            private PageId _pid; // 当前的PageId，因为一个heapFile对应一个表，所以HeapPageId的tableId是固定的
+            private Iterator<Tuple> _it = null; // 当前页的迭代器
+            private TransactionId _tid = tid; // 事务ID
+
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                // 不能将整个表都读入内存，遇到大表会导致OOM
+                // 所以需要一个迭代器，每次将一页放入内存
+                _pid = new HeapPageId(getId(), 0); // 从第一页开始
+                HeapPage page = (HeapPage) Database.getBufferPool().getPage(_tid, _pid, Permissions.READ_ONLY);
+                _it = page.iterator(); // 获取当前页面的迭代器
+            }
+
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                if (_it == null)
+                    return false; // 迭代器为空，说明没有打开
+                if (_it.hasNext())
+                    return true; // 如果当前页还有元素，返回true
+                // 当前页没有元素了，需要判断是否还有下一页
+                if (_pid.getPageNumber() == numPages() - 1)
+                    return false; // 如果当前页是最后一页，返回false
+                // 如果不是最后一页，需要获取下一页
+                _pid = new HeapPageId(getId(), _pid.getPageNumber() + 1); // 获取下一页的PageId
+                HeapPage page = (HeapPage) Database.getBufferPool().getPage(_tid, _pid, Permissions.READ_ONLY);
+                _it = page.iterator(); // 获取下一页的迭代器
+                return _it.hasNext(); // 返回下一页是否有元素
+            }
+            
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                if (!hasNext())
+                    throw new NoSuchElementException(); // 如果没有下一个元素，抛出异常
+                return _it.next(); // 返回页面内部迭代器的下一个元素
+            }
+
+            @Override // 将迭代器设置到开头，本例中重新打开即可
+            public void rewind() throws DbException, TransactionAbortedException {
+                // 重新打开迭代器
+                open();
+            }
+
+            @Override
+            public void close() {
+                // code done
+                _it = null; // 将迭代器设置为null
+                _pid = null; // 将PageId设置为null
+                _tid = null; // 将事务ID设置为null
+            }
+        };
+        return it;
     }
 
 }

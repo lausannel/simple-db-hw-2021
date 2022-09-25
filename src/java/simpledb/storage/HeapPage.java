@@ -72,9 +72,11 @@ public class HeapPage implements Page {
         @return the number of tuples on this page
     */
     private int getNumTuples() {        
-        // some code goes here
-        return 0;
-
+        // code done
+        int tupleSize = td.getSize();
+        int pageSize = BufferPool.getPageSize();
+        int numSlots = (pageSize * 8) / (tupleSize * 8 + 1); // 已经向下取整
+        return numSlots;
     }
 
     /**
@@ -83,8 +85,10 @@ public class HeapPage implements Page {
      */
     private int getHeaderSize() {        
         
-        // some code goes here
-        return 0;
+        // code done
+        int numSlots = getNumTuples();
+        int headerSize = (int) Math.ceil(numSlots / 8.0); // 向上取整
+        return headerSize;
                  
     }
     
@@ -117,8 +121,9 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+        // code done
+        // throw new UnsupportedOperationException("implement this");
+        return pid;
     }
 
     /**
@@ -287,16 +292,26 @@ public class HeapPage implements Page {
      * Returns the number of empty slots on this page.
      */
     public int getNumEmptySlots() {
-        // some code goes here
-        return 0;
+        // code done
+        int count = 0;
+        for(int i = 0; i < numSlots; i++){
+            if(!isSlotUsed(i)){
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
      * Returns true if associated slot on this page is filled.
      */
     public boolean isSlotUsed(int i) {
-        // some code goes here
-        return false;
+        // code done
+        if(i < 0 || i >= numSlots)
+            throw new IllegalArgumentException("slot number is out of range");
+        int byteNum = i / 8;
+        int bitNum = i % 8;
+        return (header[byteNum] & (1 << bitNum)) != 0;
     }
 
     /**
@@ -312,8 +327,28 @@ public class HeapPage implements Page {
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-        // some code goes here
-        return null;
+        // code done
+        // System.out.println("iterator called");
+        // System.out.println("Tuple size: " + tuples.length);
+        Iterator<Tuple> it = new Iterator<Tuple>() { // Java的iterartor可以在里面进行重载，我们在这里定义了一个匿名类
+            int index = 0;
+            @Override
+            public boolean hasNext() {
+                while(index < tuples.length && !isSlotUsed(index)){
+                    index++;
+                }
+                return index < tuples.length;
+            }
+
+            @Override
+            public Tuple next() {
+                if(!hasNext()){
+                    throw new NoSuchElementException();
+                }
+                return tuples[index++];
+            }
+        };
+        return it;
     }
 
 }

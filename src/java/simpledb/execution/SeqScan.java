@@ -19,6 +19,10 @@ import java.util.*;
 public class SeqScan implements OpIterator {
 
     private static final long serialVersionUID = 1L;
+    private TransactionId _tid;
+    private int _tableid;
+    private String _tableAlias;
+    private DbFileIterator _iterator;
 
     /**
      * Creates a sequential scan over the specified table as a part of the
@@ -37,7 +41,10 @@ public class SeqScan implements OpIterator {
      *            tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
-        // some code goes here
+        // code done
+        _tid = tid;
+        _tableid = tableid;
+        _tableAlias = tableAlias;
     }
 
     /**
@@ -46,7 +53,7 @@ public class SeqScan implements OpIterator {
      *       be the actual name of the table in the catalog of the database
      * */
     public String getTableName() {
-        return null;
+        return Database.getCatalog().getTableName(_tableid);
     }
 
     /**
@@ -54,8 +61,8 @@ public class SeqScan implements OpIterator {
      * */
     public String getAlias()
     {
-        // some code goes here
-        return null;
+        // code done
+        return _tableAlias;
     }
 
     /**
@@ -71,7 +78,9 @@ public class SeqScan implements OpIterator {
      *            tableAlias.null, or null.null).
      */
     public void reset(int tableid, String tableAlias) {
-        // some code goes here
+        // code done
+        _tableid = tableid;
+        _tableAlias = tableAlias;
     }
 
     public SeqScan(TransactionId tid, int tableId) {
@@ -79,7 +88,9 @@ public class SeqScan implements OpIterator {
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+        // code done
+        _iterator = Database.getCatalog().getDatabaseFile(_tableid).iterator(_tid); // 找到对应的文件的iterator
+        _iterator.open();  // 打开文件的iterator相当于打开这个iterator
     }
 
     /**
@@ -94,26 +105,44 @@ public class SeqScan implements OpIterator {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        TupleDesc td = Database.getCatalog().getTupleDesc(_tableid);
+        int numFields = td.numFields();
+        Type[] typeAr = new Type[numFields];
+        String[] fieldAr = new String[numFields];
+        // 一个个地手动拷贝过来，因为type和field都是private的
+        for (int i = 0; i < numFields; i++) {
+            typeAr[i] = td.getFieldType(i);
+            fieldAr[i] = _tableAlias + "." + td.getFieldName(i);
+        }
+        return new TupleDesc(typeAr, fieldAr); // 返回一个新的TupleDesc，Type是原来Field的Type，Name加上了tableAlias的前缀
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return false;
+        // code done
+        if (_iterator == null) { // 说明还没有open
+            return false;
+        }
+        return _iterator.hasNext();
     }
 
     public Tuple next() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        // code done
+        if (_iterator == null) { // null情况下不能调用next
+            throw new NoSuchElementException();
+        }
+        return _iterator.next(); // 底层已经封装好了，直接调用就可以了
     }
 
     public void close() {
-        // some code goes here
+        // code done
+        _iterator.close();
+        _iterator = null;
     }
 
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        // code done
+        _iterator.rewind();
     }
 }
