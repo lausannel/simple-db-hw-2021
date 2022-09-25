@@ -2,6 +2,7 @@ package simpledb.execution;
 
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.common.DbException;
+import simpledb.execution.Aggregator.Op;
 import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 
@@ -13,6 +14,8 @@ import java.util.*;
 public class Filter extends Operator {
 
     private static final long serialVersionUID = 1L;
+    private Predicate _predicate;
+    private OpIterator _child;
 
     /**
      * Constructor accepts a predicate to apply and a child operator to read
@@ -24,30 +27,38 @@ public class Filter extends Operator {
      *            The child operator
      */
     public Filter(Predicate p, OpIterator child) {
-        // some code goes here
+        // code done
+        _predicate = p;
+        _child = child;
+        
     }
 
     public Predicate getPredicate() {
-        // some code goes here
-        return null;
+        // code done
+        return _predicate;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        // code done
+        return _child.getTupleDesc();
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        // code done
+        _child.open();
+        super.open();
     }
 
     public void close() {
-        // some code goes here
+        // code done
+        _child.close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        // code done
+        _child.rewind();
     }
 
     /**
@@ -61,19 +72,31 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        // some code goes here
+        // code done
+        Tuple tuple = null;
+        while (_child.hasNext()) { // 用_child operator去找下一个tuple，然后判断是否符合要求
+            tuple = _child.next();
+            
+            if (_predicate.filter(tuple)) {
+                if (_predicate.getOp() == Predicate.Op.LESS_THAN) {
+                    System.out.println("Tuple:" + tuple);
+                }
+                return tuple;
+            }
+        }
         return null;
     }
 
     @Override
     public OpIterator[] getChildren() {
-        // some code goes here
-        return null;
+        // code done
+        return new OpIterator[] {_child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // some code goes here
+        // code done 
+        _child = children[0];
     }
 
 }

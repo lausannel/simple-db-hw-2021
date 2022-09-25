@@ -287,11 +287,11 @@ public class TestUtil {
             return tup;
         }
 
-		public boolean hasNext() {
+        public boolean hasNext() {
             return cur < high;
         }
 
-		public Tuple next() throws NoSuchElementException {
+        public Tuple next() throws NoSuchElementException {
 			if(cur >= high) throw new NoSuchElementException();
             Tuple tup = new Tuple(getTupleDesc());
             for (int i = 0; i < width; ++i)

@@ -2,6 +2,7 @@ package simpledb.execution;
 
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.common.DbException;
+import simpledb.execution.Predicate.Op;
 import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 
@@ -13,6 +14,9 @@ import java.util.*;
 public class Join extends Operator {
 
     private static final long serialVersionUID = 1L;
+    private JoinPredicate _predicate;
+    private OpIterator _child1;
+    private OpIterator _child2;
 
     /**
      * Constructor. Accepts two children to join and the predicate to join them
@@ -26,12 +30,15 @@ public class Join extends Operator {
      *            Iterator for the right(inner) relation to join
      */
     public Join(JoinPredicate p, OpIterator child1, OpIterator child2) {
-        // some code goes here
+        // code done
+        _predicate = p;
+        _child1 = child1;
+        _child2 = child2;
     }
 
     public JoinPredicate getJoinPredicate() {
-        // some code goes here
-        return null;
+        // code done
+        return _predicate;
     }
 
     /**
@@ -40,8 +47,8 @@ public class Join extends Operator {
      *       alias or table name.
      * */
     public String getJoinField1Name() {
-        // some code goes here
-        return null;
+        // code done
+        return _child1.getTupleDesc().getFieldName(_predicate.getField1());
     }
 
     /**
@@ -50,8 +57,8 @@ public class Join extends Operator {
      *       alias or table name.
      * */
     public String getJoinField2Name() {
-        // some code goes here
-        return null;
+        // code done
+        return _child2.getTupleDesc().getFieldName(_predicate.getField2()); // 从tuple desc中得到对应的filed名称
     }
 
     /**
@@ -59,21 +66,29 @@ public class Join extends Operator {
      *      implementation logic.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        // code done
+        return TupleDesc.merge(_child1.getTupleDesc(), _child2.getTupleDesc());
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        // code done
+        _child1.open();
+        _child2.open();
+        super.open();
     }
 
     public void close() {
-        // some code goes here
+        // code done
+        _child1.close();
+        _child2.close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        // code done
+        _child1.rewind();
+        _child2.rewind();
     }
 
     /**
@@ -95,19 +110,43 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
+        // code done
+        TupleDesc _tupleDesc = getTupleDesc(); // 将两个tuple的desc合并，因为返回的是Join后的tuple
+        // nested loop join
+        while (_child1.hasNext()) {
+            Tuple tuple1 = _child1.next(); // 由于fetch next是不断向下迭代，所以在返回前不需要rewind _child1
+            while (_child2.hasNext()) {
+                Tuple tuple2 = _child2.next();
+                if (_predicate.filter(tuple1, tuple2)) {
+                    Tuple tuple = new Tuple(_tupleDesc);
+                    int i = 0;
+                    for (; i < tuple1.getTupleDesc().numFields(); i++) {
+                        tuple.setField(i, tuple1.getField(i));
+                }
+                    for (int j = 0; j < tuple2.getTupleDesc().numFields(); j++) {
+                        tuple.setField(i + j, tuple2.getField(j));
+                    }
+                    return tuple;
+                }
+            }
+            _child2.rewind();
+        }
+        
         return null;
     }
 
     @Override
     public OpIterator[] getChildren() {
-        // some code goes here
-        return null;
+        // code done
+        return new OpIterator[] {_child1, _child2};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // some code goes here
+        // code done
+        assert children.length == 2;
+        _child1 = children[0];
+        _child2 = children[1];
     }
 
 }

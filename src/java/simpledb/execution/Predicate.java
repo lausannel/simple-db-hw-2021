@@ -11,6 +11,9 @@ import java.io.Serializable;
 public class Predicate implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private int _field; // field number，啥意思？？？ TODO
+    private Op _op;
+    private Field _operand;
 
     /** Constants used for return codes in Field.compare */
     public enum Op implements Serializable {
@@ -58,7 +61,10 @@ public class Predicate implements Serializable {
      *            field value to compare passed in tuples to
      */
     public Predicate(int field, Op op, Field operand) {
-        // some code goes here
+        // code done
+        _field = field;
+        _op = op;
+        _operand = operand;
     }
 
     /**
@@ -66,8 +72,8 @@ public class Predicate implements Serializable {
      */
     public int getField()
     {
-        // some code goes here
-        return -1;
+        // code done
+        return _field;
     }
 
     /**
@@ -75,8 +81,8 @@ public class Predicate implements Serializable {
      */
     public Op getOp()
     {
-        // some code goes here
-        return null;
+        // code done
+        return _op;
     }
     
     /**
@@ -84,8 +90,8 @@ public class Predicate implements Serializable {
      */
     public Field getOperand()
     {
-        // some code goes here
-        return null;
+        // code done
+        return _operand;
     }
     
     /**
@@ -99,8 +105,10 @@ public class Predicate implements Serializable {
      * @return true if the comparison is true, false otherwise.
      */
     public boolean filter(Tuple t) {
-        // some code goes here
-        return false;
+        // code done
+        // throw new UnsupportedOperationException("implement this");
+        Field t_field = t.getField(_field);
+        return t_field.compare(_op, _operand); // 这个在compare函数中已经封装好了，所以传入一个op和一个field就可以了
     }
 
     /**
@@ -108,7 +116,7 @@ public class Predicate implements Serializable {
      * operand_string"
      */
     public String toString() {
-        // some code goes here
-        return "";
+        // code done
+        return "f = " + _field + " op = " + _op + " operand = " + _operand;
     }
 }
