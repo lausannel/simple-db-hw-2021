@@ -226,3 +226,10 @@ Their contact information can be found on the [course homepage](http://db.csail.
 [resources]: https://help.github.com/articles/what-are-other-good-resources-for-learning-git-and-github
 
 [ssh-key]: https://help.github.com/articles/generating-ssh-keys
+
+# 运行自己测试的方法
+在MyTest.java中编写对应的代码，然后
+ant runtest -Dtest=MyTest
+普通测试也是这个指令，不过-Dtest后面的参数是对应的测试类名
+系统测试就是如下指令
+ant runsystest -Dtest={SYSTEMTESTNAME}
