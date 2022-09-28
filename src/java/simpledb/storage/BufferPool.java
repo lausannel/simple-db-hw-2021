@@ -10,6 +10,7 @@ import simpledb.transaction.TransactionId;
 import java.io.*;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -161,6 +162,13 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        // lab2暂时不需要锁
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId); // 根据tableId获取DbFile
+        List<Page> pages = dbFile.insertTuple(tid, t); // File插入元组，返回影响的页面，这部分页面会被放入缓存
+        for (Page page : pages) {
+            page.markDirty(true, tid); // 标记页面为脏页面
+            _pages.put(page.getId(), page); // 将页面放入缓存中
+        }
     }
 
     /**
@@ -179,6 +187,12 @@ public class BufferPool {
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
+        List<Page> pages = dbFile.deleteTuple(tid, t);
+        for (Page page : pages) {
+            page.markDirty(true, tid);
+            _pages.put(page.getId(), page);
+        }
         // not necessary for lab1
     }
 
