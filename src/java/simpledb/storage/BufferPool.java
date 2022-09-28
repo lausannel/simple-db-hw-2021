@@ -10,6 +10,7 @@ import simpledb.transaction.TransactionId;
 import java.io.*;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.*;
 
 /**
@@ -37,7 +38,10 @@ public class BufferPool {
     public static final int DEFAULT_PAGES = 50;
     private static int _numPages = DEFAULT_PAGES; // 默认的页数
     // private static Page[] _pages; // 页面数组
-    private static ConcurrentHashMap<PageId, Page> _pages; // 页面Map
+    private static ConcurrentHashMap<PageId, Page> _pages; // PageId到页面的map
+    private static LinkedList<PageId> _fifo;
+
+
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -48,6 +52,7 @@ public class BufferPool {
         // code done
         _numPages = numPages;
         _pages = new ConcurrentHashMap<PageId, Page>(_numPages); // 容量设置为numPages
+        _fifo = new LinkedList<>();
     }
 
     public static int getPageSize() {
@@ -89,10 +94,12 @@ public class BufferPool {
             // 页面为空，表明页面不存在，需要从磁盘中读取
             if(_pages.size() > _numPages) {
                 // 缓存已满，需要淘汰页面，目前抛出异常
+                // System.out.println("Evict a page, size " + _pages.size());
                 evictPage();
             }
             page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);// 从磁盘中读取页面
             _pages.put(pid, page); // 将页面放入缓存中
+            _fifo.add(pid);
             return page;
         } else {
             // 非空表明页面存在，直接返回
@@ -160,7 +167,7 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
+        // code done
         // not necessary for lab1
         // lab2暂时不需要锁
         DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId); // 根据tableId获取DbFile
@@ -168,7 +175,13 @@ public class BufferPool {
         pages = dbFile.insertTuple(tid, t); // File插入元组，返回影响的页面，这部分页面会被放入缓存中
         for (Page page : pages) {
             page.markDirty(true, tid); // 标记页面为脏页面
+            if (_pages.size() > _numPages) {
+                // System.out.println("Evict a page, size " + _pages.size());
+                evictPage();
+            }
             _pages.put(page.getId(), page); // 将页面放入缓存中
+            // _fifo.add(page.getId()); // 加入fifo队列
+            // System.out.println("Add page " + page.getId() + " Into the _FIFO");
         }
     }
 
@@ -187,12 +200,19 @@ public class BufferPool {
      */
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
+        // code done
         DbFile dbFile = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
         List<Page> pages = dbFile.deleteTuple(tid, t);
         for (Page page : pages) {
             page.markDirty(true, tid);
+            if (_pages.size() > _numPages) {
+                // System.out.println("Evict a page, size " + _pages.size());
+                evictPage();
+            }
             _pages.put(page.getId(), page);
+            // _fifo.add(page.getId()); // 加入fifo队列
+            // System.out.println("Add page " + page.getId() + " Into the _FIFO");
+
         }
         // not necessary for lab1
     }
@@ -205,7 +225,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
-
+        for (Map.Entry<PageId, Page> page : _pages.entrySet()) {
+            flushPage(page.getKey());
+        }
     }
 
     /**
@@ -218,8 +240,9 @@ public class BufferPool {
      * are removed from the cache so they can be reused safely
      */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
+        // code done
         // not necessary for lab1
+        _pages.remove(pid);
     }
 
     /**
@@ -228,8 +251,15 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized void flushPage(PageId pid) throws IOException {
-        // some code goes here
+        // code done
         // not necessary for lab1
+        Page page = _pages.get(pid); // 从PageMap中找到这个page然后写入磁盘 dbfile.writePage(page);
+        if (page != null && page.isDirty() != null) { // 有一个transaction将这个页面标记为脏页面
+            DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId()); // 拿到对应的文件
+            file.writePage(page); // 把这一页写入磁盘
+            page.markDirty(false, null); // 把这一页标记为干净页面，因为已经刷盘了
+        } 
+
     }
 
     /**
@@ -245,8 +275,10 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        // some code goes here
+        // code done
         // not necessary for lab1
+        _pages.remove(_fifo.getFirst()); // 淘汰最先加入的页面
+        _fifo.removeFirst(); // 注意在fifo队列中也要去除
     }
 
 }
