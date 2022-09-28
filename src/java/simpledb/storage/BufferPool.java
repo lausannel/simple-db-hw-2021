@@ -164,7 +164,8 @@ public class BufferPool {
         // not necessary for lab1
         // lab2暂时不需要锁
         DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId); // 根据tableId获取DbFile
-        List<Page> pages = dbFile.insertTuple(tid, t); // File插入元组，返回影响的页面，这部分页面会被放入缓存
+        List<Page> pages;
+        pages = dbFile.insertTuple(tid, t); // File插入元组，返回影响的页面，这部分页面会被放入缓存中
         for (Page page : pages) {
             page.markDirty(true, tid); // 标记页面为脏页面
             _pages.put(page.getId(), page); // 将页面放入缓存中

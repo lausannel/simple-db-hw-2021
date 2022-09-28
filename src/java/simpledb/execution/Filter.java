@@ -78,9 +78,6 @@ public class Filter extends Operator {
             tuple = _child.next();
             
             if (_predicate.filter(tuple)) {
-                if (_predicate.getOp() == Predicate.Op.LESS_THAN) {
-                    System.out.println("Tuple:" + tuple);
-                }
                 return tuple;
             }
         }
